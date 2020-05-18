@@ -5,6 +5,9 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 import the_fireplace.configyaml.ConfigYaml;
 import the_fireplace.configyaml.TagUtils;
+import the_fireplace.configyaml.api.constraints.YAMLLengthString;
+import the_fireplace.configyaml.api.constraints.YAMLRangeDecimal;
+import the_fireplace.configyaml.api.constraints.YAMLRangeNumber;
 
 import java.io.File;
 import java.io.FileReader;
@@ -13,13 +16,16 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * An abstract config file with the ability to load, fill in updated defaults, and save. Classes inheriting this MUST have a constructor which takes no parameters. They may have other constructors as well, but one which takes no parameters must remain.
  */
 public abstract class YAMLConfig {
     protected File configFile;
+    public boolean hardFail = true;
 
     /**
      * Constructor that takes a file name to look for in the config directory, useful constructor for basic Minecraft mod configs. Don't forget to call {@link YAMLConfig#load()} on your newly constructed object to load from the file.
@@ -38,7 +44,7 @@ public abstract class YAMLConfig {
     }
 
     public void save() {
-        if(configFile != null) {
+        if(configFile != null && !printConstraintFailures(this)) {
             DumperOptions options = new DumperOptions();
             options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
             Yaml yaml = new ConfigYaml(options);
@@ -132,5 +138,111 @@ public abstract class YAMLConfig {
             }
         }
         return priority;
+    }
+
+    /**
+     * Checks constraints on the given config option and prints failures
+     * @return true if any errors were present
+     */
+    public boolean printConstraintFailures(Object configObj) {
+        Map<String, String> failedConstraints = checkConstraints(configObj);
+        if(!failedConstraints.isEmpty()) {
+            StringBuilder failString = new StringBuilder("Failed to validate config:"+System.lineSeparator());
+            for(Map.Entry<String, String> entry: failedConstraints.entrySet())
+                failString.append(entry.getKey()).append(": ").append(entry.getValue()).append(System.lineSeparator());
+            if(hardFail)
+                throw new IllegalArgumentException(failString.toString());
+            else {
+                System.err.println(failString.toString());
+                return true;
+            }
+        } else
+            return false;
+    }
+
+    /**
+     * Check the constraints in configObj for invalid values.
+     * @param configObj
+     * The config to check. This should typically be your actual config instance.
+     * @return A map of nodes to error messages.
+     */
+    public static Map<String, String> checkConstraints(Object configObj) {
+        return checkConstraints(configObj, new ArrayList<>(), new LinkedHashMap<>());
+    }
+
+    private static Map<String, String> checkConstraints(Object configObj, List<Object> visited, Map<String, String> errors) {
+        //Skip if we've already visited this object, we don't want to get stuck in a loop
+        if(!visited.contains(configObj)) {
+            visited.add(configObj);
+            for (Field f : configObj.getClass().getFields()) {
+                if (Modifier.isStatic(f.getModifiers()))
+                    continue;
+                f.setAccessible(true);
+
+                Object o = null;
+                try {
+                    o = f.get(configObj);
+                } catch(IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+                if(TagUtils.hasTag(f.getType())) {
+                    if (o == null && f.getAnnotation(YAMLNullable.class) == null)
+                        errors.put(f.getName(), "Field was unexpectedly null.");
+                    if (o != null) {
+                        YAMLRangeNumber numRange = f.getAnnotation(YAMLRangeNumber.class);
+                        if (numRange != null) {
+                            try {
+                                long number = Long.parseLong(o.toString());
+                                if(numRange.autocorrect()) {
+                                    try {
+                                        if (number < numRange.min())
+                                            f.set(configObj, numRange.min());
+                                        else if (number > numRange.max())
+                                            f.set(configObj, numRange.max());
+                                    } catch(IllegalAccessException e) {
+                                        e.printStackTrace();
+                                        errors.put(f.getName(), "Number was not in expected range. Expected " + numRange.min() + "-" + numRange.max() + ", got " + o);
+                                    }
+                                } else if (number < numRange.min() || number > numRange.max())
+                                    errors.put(f.getName(), "Number was not in expected range. Expected " + numRange.min() + "-" + numRange.max() + ", got " + o);
+                            } catch (ClassCastException|NumberFormatException e) {
+                                errors.put(f.getName(), "Expected number value for field, got " + o.getClass().toString());
+                            }
+                        }
+                        YAMLRangeDecimal decRange = f.getAnnotation(YAMLRangeDecimal.class);
+                        if (decRange != null) {
+                            try {
+                                double decimal = Double.parseDouble(o.toString());
+                                if(decRange.autocorrect()) {
+                                    try {
+                                        if (decimal < decRange.min())
+                                            f.set(configObj, decRange.min());
+                                        else if (decimal > decRange.max())
+                                            f.set(configObj, decRange.max());
+                                    } catch(IllegalAccessException e) {
+                                        e.printStackTrace();
+                                        errors.put(f.getName(), "Decimal was not in expected range. Expected " + decRange.min() + "-" + decRange.max() + ", got " + o);
+                                    }
+                                } else if (decimal < decRange.min() || decimal > decRange.max())
+                                    errors.put(f.getName(), "Decimal was not in expected range. Expected " + decRange.min() + "-" + decRange.max() + ", got " + o);
+                            } catch (ClassCastException|NumberFormatException e) {
+                                errors.put(f.getName(), "Expected decimal value for field, got " + o.getClass().toString());
+                            }
+                        }
+                        YAMLLengthString strLen = f.getAnnotation(YAMLLengthString.class);
+                        if (strLen != null) {
+                            if (!(o instanceof String))
+                                errors.put(f.getName(), "Expected String for field, got " + o.getClass().toString());
+                            else if (((String) o).length() > strLen.max() || ((String) o).length() < strLen.min())
+                                errors.put(f.getName(), "String length was not in expected range. Expected " + strLen.min() + "-" + strLen.max() + ", got " + ((String) o).length());
+                        }
+                    }
+                } else
+                    errors.putAll(checkConstraints(o, visited, new LinkedHashMap<>()));
+
+                f.setAccessible(false);
+            }
+        }
+        return errors;
     }
 }
