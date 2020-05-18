@@ -10,6 +10,7 @@ import org.yaml.snakeyaml.nodes.Tag;
 import org.yaml.snakeyaml.reader.StreamReader;
 import org.yaml.snakeyaml.scanner.Constant;
 import org.yaml.snakeyaml.util.ArrayStack;
+import the_fireplace.configyaml.api.YAMLComment;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -195,18 +196,7 @@ public class ConfigEmitter implements Emitable {
                 commentMap.put(field.getName(), field.getAnnotation(YAMLComment.class).value());
             //If the parser is going to map the field as an object, we need to look into it and find comments within it as well
             //Go through the tags it does have and see if the class is in it
-            boolean hasTag = false;
-            for(Map.Entry<Tag, Set<Class<?>>> entry: Tag.COMPATIBILITY_MAP.entrySet()) {
-                for (Class<?> c : entry.getValue()) {
-                    if(field.getType().isAssignableFrom(c)) {
-                        hasTag = true;
-                        break;
-                    }
-                }
-                if(hasTag)
-                    break;
-            }
-            if(!hasTag)
+            if(!TagUtils.hasTag(field.getType()))
                 addToCommentMap(field.getType());
         }
     }

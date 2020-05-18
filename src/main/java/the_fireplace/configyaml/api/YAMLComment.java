@@ -1,4 +1,4 @@
-package the_fireplace.configyaml;
+package the_fireplace.configyaml.api;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
