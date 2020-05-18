@@ -14,6 +14,7 @@ import org.yaml.snakeyaml.util.ArrayStack;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Pattern;
@@ -175,9 +176,39 @@ public class ConfigEmitter implements Emitable {
     }
 
     public void setCommentMap(Object parsing) {
-        for(Field field: parsing.getClass().getFields())
-            if(field.getAnnotation(YAMLComment.class) != null)
+        commentMap.clear();
+        mapped.clear();
+        addToCommentMap(parsing.getClass());
+    }
+
+    protected static List<Class<?>> mapped = new ArrayList<>();
+
+    public void addToCommentMap(Class<?> parsing) {
+        if(mapped.contains(parsing))
+            return;
+        mapped.add(parsing);
+        for(Field field: parsing.getFields()) {
+            //Don't map static variables
+            if(Modifier.isStatic(field.getModifiers()))
+                continue;
+            if (field.getAnnotation(YAMLComment.class) != null)
                 commentMap.put(field.getName(), field.getAnnotation(YAMLComment.class).value());
+            //If the parser is going to map the field as an object, we need to look into it and find comments within it as well
+            //Go through the tags it does have and see if the class is in it
+            boolean hasTag = false;
+            for(Map.Entry<Tag, Set<Class<?>>> entry: Tag.COMPATIBILITY_MAP.entrySet()) {
+                for (Class<?> c : entry.getValue()) {
+                    if(field.getType().isAssignableFrom(c)) {
+                        hasTag = true;
+                        break;
+                    }
+                }
+                if(hasTag)
+                    break;
+            }
+            if(!hasTag)
+                addToCommentMap(field.getType());
+        }
     }
 
     @Override
