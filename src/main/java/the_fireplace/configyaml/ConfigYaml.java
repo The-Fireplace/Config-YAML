@@ -108,9 +108,8 @@ public class ConfigYaml extends Yaml {
     @Override
     public String dumpAs(Object data, Tag rootTag, DumperOptions.FlowStyle flowStyle) {
         DumperOptions.FlowStyle oldStyle = representer.getDefaultFlowStyle();
-        if (flowStyle != null) {
+        if (flowStyle != null)
             representer.setDefaultFlowStyle(flowStyle);
-        }
         List<Object> list = new ArrayList<>(1);
         list.add(data);
         StringWriter buffer = new StringWriter();

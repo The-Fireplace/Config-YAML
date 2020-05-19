@@ -24,7 +24,9 @@ import java.util.Map;
  * An abstract config file with the ability to load, fill in updated defaults, and save. Classes inheriting this MUST have a constructor which takes no parameters. They may have other constructors as well, but one which takes no parameters must remain.
  */
 public abstract class YAMLConfig {
+    @YAMLExclude
     protected File configFile;
+    @YAMLExclude
     public boolean hardFail = true;
 
     /**
