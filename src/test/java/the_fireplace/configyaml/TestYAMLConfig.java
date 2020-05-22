@@ -24,9 +24,9 @@ public final class TestYAMLConfig extends YAMLConfig {
     @YAMLComment("This is a category.\nIt can be used to keep config organized.")
     public Category cat = new Category();
 
-    @YAMLExclude
-    @YAMLComment("This is an excluded object.\nIt should not show up.")
-    public Category excludedCat = new Category();
+    //@YAMLExclude
+    //@YAMLComment("This is an excluded object.\nIt should not show up.")
+    //public Category excludedCat = new Category();
 
     public static class Category {
         @YAMLComment("Here we have a test boolean")
