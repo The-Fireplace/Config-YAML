@@ -70,14 +70,15 @@ public abstract class YAMLConfig {
                 Yaml yaml = new ConfigYaml(new Constructor(this.getClass()));
                 try {
                     FileReader reader = new FileReader(configFile);
-                    merge(this, yaml.load(reader), true);
+                    YAMLConfig loaded = yaml.load(reader);
+                    if(loaded != null)
+                        merge(this, loaded, true);
                     reader.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            } else {
-                merge(this, getDefaultConfigInstance(), false);
             }
+            merge(this, getDefaultConfigInstance(), false);
             //Write config because it may have been updated since last time
             save();
         }
