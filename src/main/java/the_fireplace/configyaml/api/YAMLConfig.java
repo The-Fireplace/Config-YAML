@@ -21,7 +21,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * An abstract config file with the ability to load, fill in updated defaults, and save. Classes inheriting this MUST have a constructor which takes no parameters. They may have other constructors as well, but one which takes no parameters must remain.
+ * An abstract config file with the ability to load, fill in updated defaults, and save.
+ * Classes inheriting this MUST have a constructor which takes no parameters. They may have other constructors as well, but one which takes no parameters must remain.
+ * If using annotations, you SHOULD NOT have two variables with the same name in the same config file. This will result in all variables with that name having the last annotation of each type applied to all variables with that name.
  */
 public abstract class YAMLConfig {
     @YAMLExclude

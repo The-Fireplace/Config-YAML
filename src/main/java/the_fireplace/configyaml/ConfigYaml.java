@@ -20,7 +20,6 @@ import java.util.List;
 
 /**
  * An extension of Yaml designed for writing config files easier.
- * @version 1.0
  */
 @SuppressWarnings("unused")
 public class ConfigYaml extends Yaml {
@@ -95,7 +94,7 @@ public class ConfigYaml extends Yaml {
             serializer.open();
             while (data.hasNext()) {
                 Object parsing = data.next();
-                e.setCommentMap(parsing);
+                e.remapCommentsAndExclusions(parsing);
                 Node node = representer.represent(parsing);
                 serializer.serialize(node);
             }

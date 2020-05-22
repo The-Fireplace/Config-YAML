@@ -178,8 +178,9 @@ public class ConfigEmitter implements Emitable {
         this.style = null;
     }
 
-    public void setCommentMap(Object parsing) {
+    public void remapCommentsAndExclusions(Object parsing) {
         commentMap.clear();
+        exclusionList.clear();
         mapped.clear();
         mapCommentsAndExclusions(parsing.getClass());
     }
@@ -194,14 +195,17 @@ public class ConfigEmitter implements Emitable {
             //Don't map static variables
             if(Modifier.isStatic(field.getModifiers()))
                 continue;
-            if (field.getAnnotation(YAMLComment.class) != null)
-                commentMap.put(field.getName(), field.getAnnotation(YAMLComment.class).value());
             if (field.getAnnotation(YAMLExclude.class) != null)
                 exclusionList.add(field.getName());
-            //If the parser is going to map the field as an object, we need to look into it and find comments within it as well
-            //Go through the tags it does have and see if the class is in it
-            if(!TagUtils.hasTag(field.getType()))
-                mapCommentsAndExclusions(field.getType());
+            //We don't need to continue doing anything on it if excluded.
+            else {
+                if (field.getAnnotation(YAMLComment.class) != null)
+                    commentMap.put(field.getName(), field.getAnnotation(YAMLComment.class).value());
+                    //If the parser is going to map the field as an object, we need to look into it and find comments within it as well
+                    //Go through the tags it does have and see if the class is in it
+                if (!TagUtils.hasTag(field.getType()))
+                    mapCommentsAndExclusions(field.getType());
+            }
         }
     }
 
@@ -307,9 +311,9 @@ public class ConfigEmitter implements Emitable {
                     String versionText = prepareVersion(ev.getVersion());
                     writeVersionDirective(versionText);
                 }
-                tagPrefixes = new LinkedHashMap<String, String>(DEFAULT_TAG_PREFIXES);
+                tagPrefixes = new LinkedHashMap<>(DEFAULT_TAG_PREFIXES);
                 if (ev.getTags() != null) {
-                    Set<String> handles = new TreeSet<String>(ev.getTags().keySet());
+                    Set<String> handles = new TreeSet<>(ev.getTags().keySet());
                     for (String handle : handles) {
                         String prefix = ev.getTags().get(handle);
                         tagPrefixes.put(prefix, handle);
@@ -325,9 +329,8 @@ public class ConfigEmitter implements Emitable {
                 if (!implicit) {
                     writeIndent();
                     writeIndicator("---", true, false, false);
-                    if (canonical) {
+                    if (canonical)
                         writeIndent();
-                    }
                 }
                 state = new ExpectDocumentRoot();
             } else if (event instanceof StreamEndEvent) {
@@ -670,9 +673,8 @@ public class ConfigEmitter implements Emitable {
     }
 
     private boolean checkEmptyDocument() {
-        if (!(event instanceof DocumentStartEvent) || events.isEmpty()) {
+        if (!(event instanceof DocumentStartEvent) || events.isEmpty())
             return false;
-        }
         Event event = events.peek();
         if (event instanceof ScalarEvent) {
             ScalarEvent e = (ScalarEvent) event;
@@ -817,22 +819,20 @@ public class ConfigEmitter implements Emitable {
     // Analyzers.
 
     private String prepareVersion(DumperOptions.Version version) {
-        if (version.major() != 1) {
+        if (version.major() != 1)
             throw new EmitterException("unsupported YAML version: " + version);
-        }
         return version.getRepresentation();
     }
 
     private final static Pattern HANDLE_FORMAT = Pattern.compile("^![-_\\w]*!$");
 
     private String prepareTagHandle(String handle) {
-        if (handle.isEmpty()) {
+        if (handle.isEmpty())
             throw new EmitterException("tag handle must not be empty");
-        } else if (handle.charAt(0) != '!' || handle.charAt(handle.length() - 1) != '!') {
+        else if (handle.charAt(0) != '!' || handle.charAt(handle.length() - 1) != '!')
             throw new EmitterException("tag handle must start and end with '!': " + handle);
-        } else if (!"!".equals(handle) && !HANDLE_FORMAT.matcher(handle).matches()) {
+        else if (!"!".equals(handle) && !HANDLE_FORMAT.matcher(handle).matches())
             throw new EmitterException("invalid character in the tag handle: " + handle);
-        }
         return handle;
     }
 
